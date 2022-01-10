@@ -259,4 +259,4 @@ contract CryptosICO is Cryptos{
 }
   
 ```
-Bu l<a href="https://wizard.openzeppelin.com/">i</a>nk ile hızlıca oluşturabilirsiniz
+Bu <a href="https://wizard.openzeppelin.com/">link</a> ile hızlıca oluşturabilirsiniz
