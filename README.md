@@ -54,7 +54,8 @@ function set(address _addr, uint _i) public {
 
 <h4>Ether Birimleri</h4>
 
-Solidity'de yazılan tüm sayısal değerler(türü belirtilmediği sürece) wei olarak hesaplanır. ( 1000000000000000000 wei == 1 ether ) <br>
+Solidity'de yazılan tüm sayısal değerler(türü belirtilmediği sürece) wei olarak hesaplanır.  <br>
+( 1000000000000000000 wei == 1 ether ) <br>
 ```js
 assert(2 ether == 2000000000000000000 wei); //true
 assert(1 minutes == 60 seconds); //true
