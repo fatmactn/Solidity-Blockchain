@@ -1,32 +1,15 @@
-# Token Oluşturma
+# Mintable,  Burnable, Pausable, Blacklist ve Presale Özelliklerine Sahip Token Oluşturma
 
-Token'ın isim, sembol, supply, balance değişkenleri tanımlanır.
-```js
-string public name = "FChain";
-string public symbol = "FTM";
-uint public decimals = 0;
-uint public override totalSupply;
-mapping(address => uint) public balances;
-address public owner;
-
-constructor() {
-   totalSupply = 1000000;
-   owner = msg.sender;
-   balances[owner] = totalSupply;
-}
-```
-
-# Mintable,  Burnable, Pausable, Blacklist ve Presale Özelliklerini Ekleme
-
+## Interface
+Kontrat oluşturulurken solidity verssiyonu ve kullanılan lisans belirtilir.
 ```js
 // SPDX-License-Identifier: MIT
 
 pragma solidity >=0.5.0 <0.9.0;
-// ----------------------------------------------------------------------------
-// EIP-20: ERC-20 Token Standard
-// https://eips.ethereum.org/EIPS/eip-20
-// -----------------------------------------
+```
 
+Kontratta kullanılacak metotlar tanımlanır.
+```js
 interface ERC20Interface {
     function totalSupply() external view returns (uint);
     function balanceOf(address tokenOwner) external view returns (uint balance);
@@ -39,47 +22,86 @@ interface ERC20Interface {
     event Transfer(address indexed from, address indexed to, uint tokens);
     event Approval(address indexed tokenOwner, address indexed spender, uint tokens);
 }
-
+```
+## Base Contract
+Token oluşturmak için base kontrat oluşturulur. Tokenın adı, sembolü, decimal(0'dan sonraki basamak sayısı), supply değeri gibi temel değişkenleri tanımlanır.
+```js
 contract Cryptos is ERC20Interface {
-    string public name = "FChain";
-    string public symbol = "FTM";
+    string public name = "AcademyChain";
+    string public symbol = "AC";
     uint public decimals = 0;
     uint public override totalSupply;
-      
-    bool public pausedState = false;
+}
+```
 
-
-    ERC20Interface public token1;
-    address public owner1;
-    uint public amount1;
-    ERC20Interface public token2;
-    address public owner2;
-    uint public amount2;
-
+Base kontrata constructor metot eklenir. Bu metotla tokenın oluşturucusu, total supply değeri belirlenir, oluşturucunun balance'ı total supply olarak atanır. <br>
+Total Supply: Oluşturulabilecek maksimum token sayısı <br>
+msg.sender(owner): Aktif olan kullanıcı cüzdan adresi <br>
+balances: Kullanıcıların cüzdanındaki token miktarları
+```js
     address public owner;
     mapping(address => uint) public balances;
-
-    mapping(address => mapping(address => uint)) allowed;
-    mapping(address => bool) public isBlackListed;
-
-
+    
     constructor() {
         totalSupply = 1000000;
         owner = msg.sender;
         balances[owner] = totalSupply;
     }
+```
 
+Sadece oluşturucunun erişebileceği metotlar için modifier yazılır.
+```js
     modifier onlyOwner(){
         require(msg.sender == owner);
         _;
     }
+```
 
+Verilen adresin cüzdanındaki token miktarını veren get metodu yazılır. 
+```js
     function balanceOf(address tokenOwner) public view override returns (uint balance) {
         return balances[tokenOwner];
     }
+```
 
+Tokenın satış işlemlerinin durdurulabilmesi ve devam ettirilebilmesi için gerekli değişken tanımlanıp set ve get metotları yazılır.
+```js
+     bool public pausedState = false;
+     
+     function paused() public onlyOwner {
+        pausedState = true;
+    }
+
+     function removePaused() public onlyOwner {
+        pausedState = false;
+    }
+    
+     function getPaused() public onlyOwner returns view (bool){
+        return pausedState;
+    }   
+```
+
+Tokenda işlem yapmasını engellemek istediğimiz hesapları blackliste'e eklemek-çıkarmak için gerekli dizi, get ve set metotları yazılır.
+```js
+    mapping(address => bool) public isBlackListed;
+    
+    function addToBlackList(address addresses) public onlyOwner {
+        isBlackListed[addresses] = true;
+    }
+
+    function removeFromBlackList(address account) external onlyOwner {
+        isBlackListed[account] = false;
+    }
+    
+    function isBlackList(address account) public view returns(bool) onlyOwner {
+        return isBlackListed[account];
+    }
+```
+
+Kontrat sahibinin başka bir hesaba token gönderimi için interface'de bulunan transfer metodu override edilir.
+```js
     function transfer(address to, uint tokens) public virtual override returns(bool success) {
-        //require(pausedState, "All transactions paused");
+        require(pausedState, "All transactions paused");
         require(!isBlackListed[msg.sender] && !isBlackListed[to], "This address is blacklisted");
         require(balances[msg.sender] >= tokens);
 
@@ -90,11 +112,19 @@ contract Cryptos is ERC20Interface {
         return true;
 
     }
+```
+
+Başka bir hesaba kendi cüzdanından token kullanma yetkisi vermek için allowance metodu override edilir.
+```js
+    mapping(address => mapping(address => uint)) allowed;
 
     function allowance(address tokenOwner, address spender) view public override returns(uint) {
         return allowed[tokenOwner][spender];
     }
+```
 
+Yetki verilen cüzdana token miktarı vermek için approve metodu override edilir.
+```js
     function approve(address spender, uint tokens) public override returns(bool success) {
         require(balances[msg.sender] >= tokens);
         require(tokens > 0);
@@ -104,9 +134,12 @@ contract Cryptos is ERC20Interface {
         emit Approval(msg.sender, spender, tokens);
         return true;
     }
+```
 
+Kontrat sahibi dışında satış işlemlerinin gerçekleşmesini sağlayan transferFrom metodu override edilir
+```js
     function transferFrom(address from, address to, uint tokens) public virtual override returns (bool success) {
-        //require(pausedState, "All transactions paused");
+        require(pausedState, "All transactions paused");
         require(!isBlackListed[from] && !isBlackListed[to], "This address is blacklisted");
         require(allowed[from][to] >= tokens);
         require(balances[from] >= tokens);
@@ -117,45 +150,12 @@ contract Cryptos is ERC20Interface {
 
         return true;
     }
+```
 
-    function addToBlackList(address addresses) public onlyOwner {
-        isBlackListed[addresses] = true;
-    }
+## Main Contract
 
-    function removeFromBlackList(address account) external onlyOwner {
-        isBlackListed[account] = false;
-    }
-
-    function paused() public onlyOwner {
-        pausedState = true;
-    }
-
-    function removePaused() public onlyOwner {
-        pausedState = false;
-    }
-
-    function swap(address _token1, address _owner1, uint _amount1, address _token2, address _owner2, uint _amount2) public {
-        token1 = ERC20Interface(_token1);
-        token2 = ERC20Interface(_token2);
-        owner1 = _owner1;
-        owner2 = _owner2;
-        amount1 = _amount1;
-        amount2 = _amount2;
-        require(msg.sender == owner1 || msg.sender == owner2, "Not authorized");
-        //require(token1.allowance(owner1, address(this)) >= amount1, "Token 1 allowance too low");
-        //require(token2.allowance(owner2, address(this)) >= amount2, "Token 2 allowance too low");
-
-        _safeTransferFrom(token1, owner1, owner2, amount1);
-        _safeTransferFrom(token2, owner2, owner1, amount2);
-    }
-
-    function _safeTransferFrom(ERC20Interface token, address sender, address recipient, uint amount) private {
-        bool sent = token.transferFrom(sender, recipient, amount);
-        require(sent, "Token transfer failed");
-    }
-
-}
-
+Tokenı satışa açmak için ICO(initial coin offering) kontratı yazılır.
+```js
 contract CryptosICO is Cryptos{
     address public admin;
     address payable public deposit;
@@ -177,24 +177,21 @@ contract CryptosICO is Cryptos{
         admin = msg.sender; 
         icoState = State.beforeStart;
     }
+}
+```
 
-    
-    modifier onlyAdmin(){
-        require(msg.sender == admin);
-        _;
-    }
-        
-    function halt() public onlyAdmin{
+```js       
+    function halt() public onlyOwner{
         icoState = State.halted;
     }
     
     
-    function resume() public onlyAdmin{
+    function resume() public onlyOwner{
         icoState = State.running;
     }
     
     
-    function changeDepositAddress(address payable newDeposit) public onlyAdmin{
+    function changeDepositAddress(address payable newDeposit) public onlyOwner{
         deposit = newDeposit;
     }
     
@@ -256,7 +253,6 @@ contract CryptosICO is Cryptos{
         balances[owner] = 0;
         return true;
     }  
-}
   
 ```
 Bu <a href="https://wizard.openzeppelin.com/">link</a> ile hızlıca oluşturabilirsiniz
